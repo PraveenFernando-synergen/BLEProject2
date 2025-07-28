@@ -40,7 +40,7 @@ const AvailableDevices: React.FC<Props> = ({ isVisible, onClose }) => {
         setScanningDevices(status);
     }
 
-    const connectStatus = (id: string, status: boolean) => {
+    const connectStatus = (id: string, status: boolean, name: string) => {
         if (status) {
             Toast.show({
                 visibilityTime: 2000,
@@ -53,13 +53,17 @@ const AvailableDevices: React.FC<Props> = ({ isVisible, onClose }) => {
             setConnectedDeviceId(id);
             setConnectedStatus(true);
 
+            // set to async storage
+            setCurrentDevice(id, name);
+            fetchData(); // Fetch current device data after connection
+
         } else {
             setConnectedStatus(false);
             Toast.show({
                 visibilityTime: 2000,
                 position: "top",
                 type: "error",
-                text1: `Failed to connect to ${id}`
+                text1: `Disconnected  ${name}`
             });
         }
     }
@@ -93,27 +97,20 @@ const AvailableDevices: React.FC<Props> = ({ isVisible, onClose }) => {
 
     }, [isVisible]);
 
+    // Function to get current device data from async storage
+    const fetchData = async () => {
+
+        // get current device data from async storage
+        const device = await getCurrentDevice();
+
+        // if device is not null then set the connected device id
+        setLastConnectedDevice(device as asyncDevices[]);
+        console.log("Current Device:", device);
+
+    }
+
     useEffect(() => {
-
-        setCurrentDevice("1012", "Halsa Baby");
-
-        const fetchData = async () => {
-
-            // get current device data from async storage
-            const device = await getCurrentDevice("1012");
-
-            // const deviceData: asyncDevices[] = [{
-            //     name: device ? device : "Halsa Baby",
-            //     id: "1012"
-            // }];
-
-            setLastConnectedDevice(device as asyncDevices[]);
-            console.log("Current Device:", device);
-
-        }
-
         fetchData();
-
     }, [])
 
 
@@ -149,13 +146,16 @@ const AvailableDevices: React.FC<Props> = ({ isVisible, onClose }) => {
                                     // call the connectDevice function
                                     connectDevice(item, connectStatus);
 
+                                    if (getConnectedDeviceId == item.id) {
+                                        return null;
+                                    }
 
                                 }}>
-                                    <View style={getSelectedDevice === item.id ? styles.selectedDeviceItem : styles.deviceItem}>
+                                    <View style={getConnectedDeviceId === item.id && getConnectedStatus ? styles.connectedDevice : getSelectedDevice === item.id ? styles.selectedDeviceItem : styles.deviceItem}>
                                         <SignalStrength rssi={item.rssi ?? 1} />
                                         <View style={{ flex: 1, paddingLeft: 30 }}>
                                             <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.name}</Text>
-                                            <Text style={{ color: '#666' }}>{getSelectedDevice === item.id ? 'Connecting...' : 'Connect'}</Text>
+                                            <Text style={{ color: '#666' }}>{getConnectedDeviceId === item.id && getConnectedStatus ? "Connected" : getSelectedDevice === item.id && getScanningDevices ? 'Connecting...' : 'Connect'}</Text>
                                         </View>
 
                                     </View>
@@ -163,27 +163,23 @@ const AvailableDevices: React.FC<Props> = ({ isVisible, onClose }) => {
                             )}
 
                             ListHeaderComponent={
-                                <View style={{ padding: 16 }}>
+                                <View style={{ paddingTop: 16 }}>
                                     <Text style={{ fontSize: 16, color: '#666', marginBottom: 10 }}>Current Device</Text>
 
                                     {/* current connected device list */}
                                     <FlatList contentContainerStyle={{ paddingBottom: 30 }} data={gtLastConnectedDevice} keyExtractor={(item) => item.id}
                                         renderItem={({ item }) => (
                                             <TouchableOpacity onPress={() => {
-                                                setConnectedDeviceId(item.id);
+                                                // set selected device id
                                                 setSelectedDevice(item.id);
-                                                Toast.show({
-                                                    visibilityTime: 2000,
-                                                    position: "top",
-                                                    type: "success",
-                                                    text1: `Connected to ${item.name}`
-                                                });
+                                                // call the connectDevice function
+                                                connectDevice(item, connectStatus);
                                             }}>
-                                                <View style={getSelectedDevice === item.id ? styles.selectedDeviceItem : styles.deviceItem}>
+                                                <View style={getConnectedDeviceId === item.id && getConnectedStatus ? styles.connectedDevice : getSelectedDevice === item.id ? styles.selectedDeviceItem : styles.deviceItem}>
                                                     <SignalStrength rssi={-70} />
                                                     <View style={{ flex: 1, paddingLeft: 30 }}>
                                                         <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.name}</Text>
-                                                        <Text style={{ color: '#666' }}>{getSelectedDevice === item.id ? 'Connecting...' : 'Connect'}</Text>
+                                                        <Text style={{ color: '#666' }}>{getConnectedDeviceId === item.id && getConnectedStatus ? "Connected" : getSelectedDevice === item.id && getScanningDevices ? 'Connecting...' : 'Connect'}</Text>
                                                     </View>
 
                                                 </View>
@@ -298,7 +294,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#eeeeeeff',
-        borderRadius: 10,
+        borderRadius: 30,
+    },
+    connectedDevice: {
+        padding: 10,
+        paddingVertical: 15,
+        marginVertical: 15,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(135,100,188,0.5)',
+        borderRadius: 30,
     },
     buttonsHolder: {
         width: "100%",

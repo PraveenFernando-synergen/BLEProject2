@@ -6,13 +6,14 @@ import { asyncDevices } from './screens/AvailableDevices';
 export const setCurrentDevice = async (id: string, name: string) => {
 
     try {
-        const value = await AsyncStorage.getItem(id);
-        if (value !== null) {
+        const value = await AsyncStorage.getItem('current_device');
+        if (value !== null&& JSON.parse(value).id===id) {
             // Data exists
             console.log(`Data already exists:`, value);
         } else {
             // Data does not exist
-            await AsyncStorage.setItem(id, name);
+            const device={'id':id,'name':name};
+            await AsyncStorage.setItem('current_device', JSON.stringify(device));
             console.log("Successfully Saved");
         }
     } catch (error) {
@@ -20,18 +21,15 @@ export const setCurrentDevice = async (id: string, name: string) => {
     }
 };
 
-
-
-export const getCurrentDevice = async (key: string) => {
+export const getCurrentDevice = async () => {
     try {
-        const name = await AsyncStorage.getItem(key);
+        const value = await AsyncStorage.getItem('current_device');
 
-        const device: asyncDevices[] = [{
-            name: name ? name : "Halsa Baby",
-            id: key
-        }];
+         if (value) {
+            const device: asyncDevices = JSON.parse(value);
+            return [device];
+        }
 
-        return device;
     } catch (e) {
         console.error("Error reading data", e);
     }

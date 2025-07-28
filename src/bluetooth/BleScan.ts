@@ -3,6 +3,7 @@ import { BleManager } from "react-native-ble-plx";
 import { BleError } from "react-native-ble-plx";
 import { Device } from "react-native-ble-plx";
 import Toast from "react-native-toast-message";
+import { asyncDevices } from "../screens/AvailableDevices";
 
 const manager = new BleManager();
 
@@ -88,34 +89,43 @@ export const StopBleScan = () => {
 var isConnect = false;
 
 // logic to connect device
-export const connectDevice = async (device: Device,connectStatus:(id: string, status: boolean)=>void) => {
+export const connectDevice = async (device: Device | asyncDevices, connectStatus: (id: string, status: boolean, name: string) => void) => {
+
+    const disconnectListener = (deviceId: string) => {
+
+        manager.onDeviceDisconnected(deviceId, (error: BleError | null, device: Device | null) => {
+            if (error) {
+                console.error(JSON.stringify(error, null, 4))
+                console.log("Error disconnecting device:", error.message);
+            }
+            if (device) {
+                console.info(JSON.stringify(device, null, 4))
+                console.log("Device disconnected:", device.name, "Device ID:", device.id);
+
+            }
+        });
+
+    }
 
     if (!isConnect) {
 
         isConnect = true;
 
-        StopBleScan();
-
-        console.log("Device Name:", device.name, "Device id: ", device.id, "RSSI:", device.rssi)
-
         try {
 
-            const connectedDevice = await manager.connectToDevice(device.id);
+            const connectedDevice = await manager.connectToDevice(device.id, { autoConnect: true });
             console.log("Connected")
 
-            Toast.show({
-                visibilityTime: 2000,
-                position: "top",
-                type: "success",
-                text1: `Successfully Connected`
-            });
-
+            disconnectListener(device.id);
+            
             const discoveredServices = await connectedDevice.discoverAllServicesAndCharacteristics();
-            if(discoveredServices!=null){
-                connectStatus(device.id, true);
+            StopBleScan();
+
+            if (discoveredServices != null) {
+                connectStatus(device.id, true, device.name ? device.name : "Halsa Baby");
                 console.log("Discovered all services and characteristics for device:", discoveredServices.name,);
-            }else{
-                connectStatus("", false);
+            } else {
+                connectStatus("", false, device.name ? device.name : "Halsa Baby");
                 console.log("No services and characteristics discovered for device:", device.name);
             }
 
@@ -125,6 +135,7 @@ export const connectDevice = async (device: Device,connectStatus:(id: string, st
 
             deviceDisconnect(device.id);
             console.error("Connection error:", error);
+            connectStatus(device.id, false, device.name ? device.name : "Halsa Baby");
 
             Toast.show({
                 visibilityTime: 2000,
@@ -138,6 +149,7 @@ export const connectDevice = async (device: Device,connectStatus:(id: string, st
     } else if (isConnect) {
         deviceDisconnect(device.id);
         isConnect = false
+        connectStatus(device.id, false, device.name ? device.name : "Halsa Baby");
     }
 
 }
@@ -160,18 +172,6 @@ export const deviceDisconnect = async (deviceId: string) => {
         });
 
     }
-
-    manager.onDeviceDisconnected(deviceId, (error: BleError | null, device: Device | null) => {
-        if (error) {
-            console.error(JSON.stringify(error, null, 4))
-            console.log("Error disconnecting device:", error.message);
-        }
-        if (device) {
-            console.info(JSON.stringify(device, null, 4))
-            console.log("Device disconnected:", device.name, "Device ID:", device.id);
-
-        }
-    });
 
 
 }
